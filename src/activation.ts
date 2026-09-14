@@ -70,7 +70,7 @@ export class ToolActivator {
     const current = this.api.getActiveTools();
     const next = current.filter((n) => !this.owned.has(n) || this.pinned.has(n) || this.searchActivated.has(n));
     for (const p of this.pinned) if (!next.includes(p)) next.push(p);
-    for (const s of this.searchActivated) if (!next.includes(s)) next.push(s);
+    for (const s of this.searchActivated) if (this.owned.has(s) && !next.includes(s)) next.push(s);
     if (!next.includes(SEARCH_TOOL_NAME)) next.push(SEARCH_TOOL_NAME);
     if (!sameSet(current, next)) this.api.setActiveTools(next);
   }
@@ -109,6 +109,20 @@ export class ToolActivator {
   /** New session: search activations do not carry over. */
   clearSession(): void {
     this.searchActivated.clear();
+  }
+
+  /** The search activations to hand to the instance Pi builds on `/reload`. */
+  exportActivations(): string[] {
+    return [...this.searchActivated];
+  }
+
+  /**
+   * Take over activations from the instance `/reload` replaced. Pi keeps its active tool set across a
+   * reload, so the model still believes these tools exist; dropping them at baseline made every one
+   * of them "Tool ... not found" until the next mcp_search. Names not owned are ignored at baseline.
+   */
+  adopt(names: readonly string[]): void {
+    for (const n of names) this.searchActivated.add(n);
   }
 }
 

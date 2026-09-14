@@ -82,3 +82,25 @@ test("reset drops search activations but keeps pins; clearSession forgets them f
   a.applyBaseline();
   assert.ok(!f.active().includes("a1"));
 });
+
+test("reload handoff: the next instance adopts activations, so baseline keeps them active", () => {
+  // Instance 1 activated `gh_get` via search, then Pi reloads: it keeps the active set and
+  // marks every extension tool active while the new instance is built.
+  const f = fakeApi(["read", SEARCH_TOOL_NAME]);
+  const old = new ToolActivator(f.api);
+  old.own("gh_search", false);
+  old.own("gh_get", false);
+  old.applyBaseline();
+  old.activate(["gh_get"]);
+  const handoff = old.exportActivations();
+  assert.deepEqual(handoff, ["gh_get"]);
+  f.api.setActiveTools([...f.active(), "gh_search"]); // Pi's reload: every extension tool active
+
+  const fresh = new ToolActivator(f.api);
+  fresh.clearSession();
+  fresh.adopt([...handoff, "vanished_tool"]);
+  fresh.own("gh_search", false);
+  fresh.own("gh_get", false);
+  fresh.applyBaseline();
+  assert.deepEqual(f.active().sort(), ["gh_get", "read", SEARCH_TOOL_NAME].sort());
+});
