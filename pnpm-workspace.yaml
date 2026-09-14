@@ -1,0 +1,9 @@
+packages:
+  - '.'
+
+# Transitive dev dependencies of @earendil-works/pi-coding-agent ship postinstall scripts pid-mcp
+# never needs; typechecking against its .d.ts files works without them.
+allowBuilds:
+  '@google/genai': false
+  esbuild: false
+  protobufjs: false
