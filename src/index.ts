@@ -45,6 +45,24 @@ interface RuntimeSnapshotRequest {
 /** Another MCP extension is already loaded when it has claimed one of these tool names. */
 const FOREIGN_MCP_TOOL_NAMES = ["mcp", "mcpScript"];
 
+/**
+ * `/reload` swaps extension instances inside one process; module state does not survive it but
+ * globalThis does. The outgoing instance leaves its search activations here for the incoming one.
+ */
+const RELOAD_HANDOFF = Symbol.for("pid-mcp.reload-handoff");
+type HandoffGlobal = typeof globalThis & { [RELOAD_HANDOFF]?: string[] };
+
+function leaveReloadHandoff(names: string[]): void {
+  (globalThis as HandoffGlobal)[RELOAD_HANDOFF] = names;
+}
+
+function takeReloadHandoff(): string[] {
+  const g = globalThis as HandoffGlobal;
+  const names = g[RELOAD_HANDOFF] ?? [];
+  delete g[RELOAD_HANDOFF];
+  return names;
+}
+
 type Details = Record<string, unknown>;
 type ToolResult = AgentToolResult<Details>;
 
@@ -215,7 +233,7 @@ export default function pidMcp(pi: ExtensionAPI): void {
 
   // ---- lifecycle ------------------------------------------------------------------------------------
 
-  pi.on("session_start", (_ev, c) => {
+  pi.on("session_start", (ev, c) => {
     ctx = c;
     if (hasForeignMcpExtension()) {
       c.ui.notify(
@@ -225,6 +243,10 @@ export default function pidMcp(pi: ExtensionAPI): void {
       return;
     }
     core.activator.clearSession();
+    // `/reload` builds a fresh extension instance in the same process while Pi keeps the active tool
+    // set. The instance being replaced left its activations on globalThis; pick them up so the model's
+    // toolset does not change under it.
+    if (ev.reason === "reload") core.activator.adopt(takeReloadHandoff());
     core.load(c.cwd);
     core.publishNow();
     void core.refreshUnindexed();
@@ -232,6 +254,7 @@ export default function pidMcp(pi: ExtensionAPI): void {
 
   pi.on("session_shutdown", async () => {
     ctx = undefined;
+    leaveReloadHandoff(core.activator.exportActivations());
     await core.shutdown();
   });
 
