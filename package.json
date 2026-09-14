@@ -1,0 +1,35 @@
+{
+  "name": "pid-mcp",
+  "version": "0.1.0",
+  "description": "MCP capability loader for Pi: every MCP tool is a native Pi tool, held inactive until mcp_search activates it.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi-extension", "pi", "mcp"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jinhuang712/pid-mcp.git"
+  },
+  "files": ["src", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts",
+    "check": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "@types/node": "^24.0.0",
+    "typebox": "1.3.7",
+    "typescript": "^5.9.0"
+  }
+}
