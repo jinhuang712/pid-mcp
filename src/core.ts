@@ -23,7 +23,7 @@ import type {
 } from "./types.ts";
 import { isServerDisabled } from "./types.ts";
 
-export const PID_MCP_VERSION = "0.1.0";
+export const PID_MCP_VERSION = "0.1.1";
 export const DEFAULT_SEARCH_LIMIT = 5;
 export const MAX_SEARCH_LIMIT = 15;
 

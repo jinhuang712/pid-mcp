@@ -1,6 +1,6 @@
 {
   "name": "pid-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP capability loader for Pi: every MCP tool is a native Pi tool, held inactive until mcp_search activates it.",
   "type": "module",
   "license": "MIT",

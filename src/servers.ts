@@ -13,7 +13,7 @@ import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { expandHome, interpolateEnv, interpolateRecord, missingEnvVars, transportOf } from "./config.ts";
-import type { OAuthStore } from "./oauth.ts";
+import { AuthorizationRequiredError, type OAuthStore } from "./oauth.ts";
 import type { CachedResource, CachedTool, ServerEntry } from "./types.ts";
 
 export interface ServerMetadata {
@@ -81,6 +81,16 @@ export class ServerManager {
       return rt.connection;
     }
     if (rt.connecting) return rt.connecting;
+    // An OAuth server with no stored tokens cannot connect without a browser. Say so instead of
+    // letting the SDK attempt client registration with no redirect URI.
+    if (entry.auth === "oauth" && this.options.oauth && !this.options.oauth.hasTokens(name) && !this.options.oauth.isInteractive(name)) {
+      const error = new AuthorizationRequiredError(name);
+      rt.needsAuth = true;
+      rt.lastError = error.message;
+      rt.failedAt = undefined;
+      this.options.onStatusChange?.(name);
+      return Promise.reject(error);
+    }
     rt.connecting = this.open(name, entry)
       .then((connection) => {
         rt.connection = connection;
@@ -95,8 +105,9 @@ export class ServerManager {
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         rt.lastError = message;
-        rt.failedAt = Date.now();
-        rt.needsAuth = error instanceof UnauthorizedError || /401|unauthori[sz]ed/i.test(message);
+        rt.needsAuth =
+          error instanceof UnauthorizedError || error instanceof AuthorizationRequiredError || /401|unauthori[sz]ed/i.test(message);
+        rt.failedAt = rt.needsAuth ? undefined : Date.now();
         this.options.onStatusChange?.(name);
         throw error;
       })
@@ -178,29 +189,33 @@ export class ServerManager {
     if (entry.auth !== "oauth") throw new Error(`Server "${name}" is not configured with "auth": "oauth"`);
     if (!this.options.oauth) throw new Error("OAuth store unavailable");
     await this.close(name);
-    await this.options.oauth.ensureListener(name);
-    const env = this.options.env ?? process.env;
-    const transport = this.makeTransport(name, entry, env) as StreamableHTTPClientTransport | SSEClientTransport;
-    const probe = new Client({ name: "pid-mcp", version: "0.1.0" }, { capabilities: {} });
+    const endInteractive = this.options.oauth.beginInteractive(name);
     try {
-      await probe.connect(transport, { timeout: this.requestTimeout(entry) });
-      await probe.close();
-    } catch (error) {
-      if (!(error instanceof UnauthorizedError)) {
+      await this.options.oauth.ensureListener(name);
+      const env = this.options.env ?? process.env;
+      const transport = this.makeTransport(name, entry, env) as StreamableHTTPClientTransport | SSEClientTransport;
+      const probe = new Client({ name: "pid-mcp", version: "0.1.0" }, { capabilities: {} });
+      try {
+        await probe.connect(transport, { timeout: this.requestTimeout(entry) });
+        await probe.close();
+      } catch (error) {
+        if (!(error instanceof UnauthorizedError)) {
+          await transport.close().catch(() => undefined);
+          throw error;
+        }
+        const pending = this.options.oauth.pendingFor(name);
+        if (!pending) throw new Error(`Authorization for "${name}" did not start`);
+        const code = await pending.code;
+        await transport.finishAuth(code);
         await transport.close().catch(() => undefined);
-        throw error;
       }
-      const pending = this.options.oauth.pendingFor(name);
-      if (!pending) throw new Error(`Authorization for "${name}" did not start`);
-      const code = await pending.code;
-      await transport.finishAuth(code);
-      await transport.close().catch(() => undefined);
+      const rt = this.runtime(name);
+      rt.needsAuth = false;
+      rt.lastError = undefined;
+      await this.connect(name, entry);
     } finally {
-      this.options.oauth.closeListener(name);
+      endInteractive();
     }
-    const rt = this.runtime(name);
-    rt.needsAuth = false;
-    await this.connect(name, entry);
   }
 
   async listMetadata(name: string, entry: ServerEntry): Promise<ServerMetadata> {
