@@ -71,6 +71,8 @@ export class PidMcp {
   private readonly cachePath: string;
   private cache: MetadataCache = { version: 1, servers: {} };
   private statusTimer?: NodeJS.Timeout;
+  /** Set by `shutdown()`. Pi invalidates this instance's ctx on reload; nothing may touch it afterwards. */
+  private disposed = false;
 
   constructor(options: PidMcpOptions) {
     this.host = options.host;
@@ -145,7 +147,11 @@ export class PidMcp {
   }
 
   async shutdown(): Promise<void> {
-    if (this.statusTimer) clearTimeout(this.statusTimer);
+    // Closing servers fires onStatusChange, which would re-arm the status timer after the clear
+    // below. Once that timer fired against a ctx Pi had already invalidated (`/reload`), the
+    // uncaught throw took the whole Pi process down. Mark disposed first so nothing re-arms.
+    this.disposed = true;
+    this.clearStatusTimer();
     await this.manager.closeAll();
     this.activator.clearSession();
     this.host.publishStatus(this.emptySnapshot());
@@ -282,19 +288,30 @@ export class PidMcp {
   // ---- status ----------------------------------------------------------------------------------------
 
   private scheduleStatus(): void {
-    if (this.statusTimer) return;
+    if (this.disposed || this.statusTimer) return;
     this.statusTimer = setTimeout(() => {
       this.statusTimer = undefined;
-      this.host.publishStatus(this.snapshot());
+      if (this.disposed) return;
+      // A throw inside a timer is an uncaught exception and kills the Pi process; never let it escape.
+      try {
+        this.host.publishStatus(this.snapshot());
+      } catch (error) {
+        this.host.log(`status publish failed: ${(error as Error).message}`);
+      }
     }, 20);
     this.statusTimer.unref?.();
   }
 
-  publishNow(): void {
+  private clearStatusTimer(): void {
     if (this.statusTimer) {
       clearTimeout(this.statusTimer);
       this.statusTimer = undefined;
     }
+  }
+
+  publishNow(): void {
+    this.clearStatusTimer();
+    if (this.disposed) return;
     this.host.publishStatus(this.snapshot());
   }
 
