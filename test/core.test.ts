@@ -175,3 +175,24 @@ test("include/exclude filters and toolPrefix none", async () => {
   await h.core.refreshUnindexed();
   assert.deepEqual([...h.registered.keys()], ["echo"]);
 });
+
+test("shutdown: nothing re-arms the status timer, so a ctx Pi invalidated on /reload is never touched", async () => {
+  const h = harness();
+  h.core.load(h.project);
+  await h.core.refreshUnindexed();
+  await h.core.shutdown();
+
+  // After `await ctx.reload()` every accessor on the old ctx throws; the old core instance keeps living
+  // only through its timers. Model that on the activation host and poke the scheduler.
+  const core = h.core as unknown as { activator: { api: { getActiveTools: () => string[] } }; scheduleStatus: () => void };
+  core.activator.api.getActiveTools = () => {
+    throw new Error("This extension ctx is stale after session replacement or reload.");
+  };
+  const published = h.snapshots.length;
+  core.scheduleStatus(); // what the manager's onStatusChange does while closeAll() drains
+  h.core.publishNow();
+  await new Promise((r) => setTimeout(r, 80));
+
+  assert.equal(h.snapshots.length, published, "no status publish may run after shutdown");
+  assert.deepEqual(h.logs.filter((l) => l.includes("status publish failed")), []);
+});
