@@ -275,8 +275,23 @@ export default function pidMcp(pi: ExtensionAPI): void {
     "/mcp auth <server>        sign in to an OAuth server",
     "/mcp logout <server>      forget stored OAuth credentials",
     "/mcp enable|disable <s>   flip `disabled` in the global mcp.json",
+    "/mcp activate <s> [tool…] put a server's tools (or all of them) in the model's view",
+    "/mcp deactivate [<s> [tool…]] take them out again; no args = every MCP tool",
     "/mcp reset-tools          deactivate search-activated tools (pins stay)",
   ].join("\n");
+
+  /** Tool arguments as typed: the Pi tool name, or the server's own tool name. */
+  function resolveTools(server: string, args: string[]): { found: string[]; missing: string[] } {
+    const state = core.servers.get(server);
+    const found: string[] = [];
+    const missing: string[] = [];
+    for (const a of args) {
+      const hit = [...(state?.toolNames ?? [])].find((pi) => pi === a || core.toolFor(pi)?.originalName === a);
+      if (hit) found.push(hit);
+      else missing.push(a);
+    }
+    return { found, missing };
+  }
 
   async function mcpCommand(argsRaw: string, c: ExtensionCommandContext): Promise<void> {
     ctx = c;
@@ -363,6 +378,39 @@ export default function pidMcp(pi: ExtensionAPI): void {
           core.load(c.cwd);
           core.publishNow();
           c.ui.notify(`${name}: ${verb}d in ${path}`, "info");
+          return;
+        }
+        case "activate": {
+          const [server, ...tools] = rest;
+          if (!server || !core.servers.has(server)) {
+            c.ui.notify(`Usage: /mcp activate <server> [tool…]. Known: ${[...core.servers.keys()].join(", ") || "(none)"}`, "warning");
+            return;
+          }
+          const all = [...core.servers.get(server)!.toolNames];
+          const { found, missing } = tools.length ? resolveTools(server, tools) : { found: all, missing: [] };
+          const result = core.activator.activate(found);
+          core.publishNow();
+          const bits = [`${server}: ${result.added.length} activated`];
+          if (result.alreadyActive.length) bits.push(`${result.alreadyActive.length} already active`);
+          if (missing.length) bits.push(`unknown: ${missing.join(", ")}`);
+          c.ui.notify(bits.join(" · "), missing.length ? "warning" : "info");
+          return;
+        }
+        case "deactivate": {
+          const [server, ...tools] = rest;
+          let targets: string[];
+          let missing: string[] = [];
+          if (!server) targets = core.activator.activeOwnedNames();
+          else if (!core.servers.has(server)) {
+            c.ui.notify(`Unknown MCP server "${server}". Known: ${[...core.servers.keys()].join(", ") || "(none)"}`, "error");
+            return;
+          } else if (tools.length === 0) targets = [...core.servers.get(server)!.toolNames];
+          else ({ found: targets, missing } = resolveTools(server, tools));
+          const removed = core.activator.deactivate(targets);
+          core.publishNow();
+          const bits = [`${server ?? "all servers"}: ${removed.length} deactivated`];
+          if (missing.length) bits.push(`unknown: ${missing.join(", ")}`);
+          c.ui.notify(bits.join(" · "), missing.length ? "warning" : "info");
           return;
         }
         case "reset-tools": {
