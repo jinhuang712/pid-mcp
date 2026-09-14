@@ -95,6 +95,11 @@ tokens, PKCE verifier, state) lives in `~/.pi/agent/pid-mcp/oauth/<server>.json`
 discovery and redirects, opens the browser, waits for the callback, exchanges the code with
 `finishAuth`, then connects normally. Tokens refresh through the SDK on later connects.
 
+Outside `/mcp auth` the flow is never started: a connect to an OAuth server with no stored tokens
+fails immediately with `needs-auth` and the hint to run `/mcp auth`, and the provider refuses to
+register a client or open a browser. Letting the SDK register a client with no redirect URI is what
+produced opaque validation errors from authorization servers that reject such requests.
+
 ## Cache
 
 `mcp-cache.json` version 1, the shape pi-mcp-adapter writes. Each server entry carries

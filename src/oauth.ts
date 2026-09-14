@@ -50,6 +50,8 @@ export class OAuthStore {
   private readonly dir: string;
   private readonly listeners = new Map<string, { server: Server; redirectUri: string }>();
   private readonly pending = new Map<string, PendingAuthorization>();
+  /** Servers currently inside `/mcp auth`; only these may open a browser or register a client. */
+  private readonly interactive = new Set<string>();
   private readonly options: OAuthStoreOptions;
 
   constructor(options: OAuthStoreOptions = {}) {
@@ -87,6 +89,19 @@ export class OAuthStore {
 
   pendingFor(serverName: string): PendingAuthorization | undefined {
     return this.pending.get(serverName);
+  }
+
+  isInteractive(serverName: string): boolean {
+    return this.interactive.has(serverName);
+  }
+
+  /** Mark a server as being signed in through `/mcp auth`. Returns a function that ends the flow. */
+  beginInteractive(serverName: string): () => void {
+    this.interactive.add(serverName);
+    return () => {
+      this.interactive.delete(serverName);
+      this.closeListener(serverName);
+    };
   }
 
   /** Start a loopback listener for one server's redirect and return its URI. Idempotent. */
@@ -131,6 +146,11 @@ export class OAuthStore {
         return redirect;
       },
       get clientMetadata(): OAuthClientMetadata {
+        if (!redirect) {
+          // Registering a client with no redirect URI is what authorization servers reject with an
+          // opaque error; refuse before the request leaves the process.
+          throw new AuthorizationRequiredError(serverName);
+        }
         return {
           client_name: oauth.clientName ?? "pid-mcp",
           redirect_uris: redirect ? [redirect] : [],
@@ -161,6 +181,7 @@ export class OAuthStore {
         save({ tokens });
       },
       redirectToAuthorization(authorizationUrl) {
+        if (!store.interactive.has(serverName)) throw new AuthorizationRequiredError(serverName);
         store.beginAuthorization(serverName, authorizationUrl, redirect);
       },
       saveCodeVerifier(codeVerifier) {
@@ -215,6 +236,16 @@ export class OAuthStore {
     this.pending.set(serverName, pending);
     (this.options.openBrowser ?? openInBrowser)(authorizationUrl.toString());
     this.options.onAuthorizationRequired?.(pending);
+  }
+}
+
+/** Thrown on a non-interactive connect that would need a browser sign-in. */
+export class AuthorizationRequiredError extends Error {
+  readonly serverName: string;
+  constructor(serverName: string) {
+    super(`MCP server "${serverName}" needs sign-in: run /mcp auth ${serverName}`);
+    this.name = "AuthorizationRequiredError";
+    this.serverName = serverName;
   }
 }
 
