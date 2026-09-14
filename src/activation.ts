@@ -95,6 +95,24 @@ export class ToolActivator {
     return { requested: [...names], added, alreadyActive };
   }
 
+  /**
+   * Take named owned tools out of the model's view. A pinned tool loses its pin for this session
+   * (the config still says pinned; the next session_start re-applies it). Returns what was removed.
+   */
+  deactivate(names: readonly string[]): string[] {
+    const wanted = new Set(names.filter((n) => this.owned.has(n)));
+    if (wanted.size === 0) return [];
+    for (const n of wanted) {
+      this.searchActivated.delete(n);
+      this.pinned.delete(n);
+    }
+    const current = this.api.getActiveTools();
+    const next = current.filter((n) => !wanted.has(n));
+    const removed = current.filter((n) => wanted.has(n));
+    if (removed.length > 0) this.api.setActiveTools(next);
+    return removed;
+  }
+
   /** Explicit reset: drop search activations, keep pins. Called only from a user command. */
   reset(): string[] {
     const dropped = [...this.searchActivated];
