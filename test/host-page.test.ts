@@ -15,6 +15,8 @@ const server = (over: Partial<ServerStatusSnapshot> = {}): ServerStatusSnapshot 
   activeToolNames: ["search_issues", "get_issue"],
   runtimeRegistered: false,
   transport: "http",
+  auth: "none",
+  signedIn: false,
   ...over,
 });
 
@@ -76,4 +78,38 @@ test("says what it is in the note, and has no section when there is nothing", ()
   assert.equal(page.title, "MCP");
   assert.match(page.note ?? "", /1\/1 connected · 2\/12 tools active/);
   assert.deepEqual(buildPage(snapshot()).sections, []);
+});
+
+test("answers sign-in state per account, never a green light it has not earned", () => {
+  const page = buildPage(
+    snapshot(
+      server({ name: "a", auth: "oauth", signedIn: true }),
+      server({ name: "b", auth: "oauth", signedIn: false, status: "needs-auth" }),
+      server({ name: "c", auth: "oauth", signedIn: false, disabled: true, status: "disabled" }),
+    ),
+  );
+  const accounts = page.sections[0];
+  assert.equal(accounts?.title, "Accounts");
+  const labels = new Map(
+    (accounts?.rows ?? []).map((r) => [r.id, r.badges?.map((b) => b.text)]),
+  );
+  assert.deepEqual(labels.get("account:a"), ["Signed in"]);
+  assert.deepEqual(labels.get("account:b"), ["Needs sign-in"]);
+  assert.deepEqual(labels.get("account:c"), ["Off"]);
+  // Only the server that can act gets the action; the switch stays on the server row.
+  const byId = new Map((accounts?.rows ?? []).map((r) => [r.id, r]));
+  assert.deepEqual(
+    byId.get("account:b")?.actions?.map((a) => a.command),
+    ["/mcp auth b"],
+  );
+  assert.equal(byId.get("account:a")?.actions, undefined);
+  assert.equal(byId.get("account:c")?.actions, undefined);
+});
+
+test("has no Accounts section when nothing signs in", () => {
+  const page = buildPage(snapshot(server()));
+  assert.deepEqual(
+    page.sections.map((s) => s.title),
+    [undefined],
+  );
 });

@@ -137,6 +137,12 @@ export interface ServerStatusSnapshot {
   runtimeRegistered: boolean;
   transport: "stdio" | "http" | "unknown";
   cachedAt?: number;
+  // pid-mcp additions: credential state for the Accounts section. Trailing
+  // fields; readers written against the adapter snapshot ignore them.
+  /** Whether this server signs in with OAuth. */
+  auth: "oauth" | "none";
+  /** Whether the OAuth store holds tokens. Always false when auth is "none". */
+  signedIn: boolean;
 }
 
 export interface StatusSnapshot {

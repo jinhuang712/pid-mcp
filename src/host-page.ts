@@ -50,6 +50,7 @@ const STATUS_TONE: Record<string, Tone> = {
   connected: "ok",
   cached: "muted",
   connecting: "muted",
+  "needs-auth": "warn",
   disabled: "muted",
   failed: "danger",
 };
@@ -60,10 +61,44 @@ export function buildPage(snapshot: StatusSnapshot): Page {
     `${snapshot.connectedCount}/${servers.length} connected · ` +
     `${snapshot.activeToolCount}/${snapshot.totalTools} tools active` +
     (snapshot.disabledCount ? ` · ${snapshot.disabledCount} off` : "");
+  const accounts = servers.filter((s) => s.auth === "oauth");
   return {
     title: "MCP",
     note,
-    sections: servers.length ? [{ rows: servers.map(serverRow) }] : [],
+    sections: [
+      // Who can sign in, answered the way the old Providers tab answered it:
+      // a state label per account, never a green light it has not earned.
+      ...(accounts.length
+        ? [
+            {
+              title: "Accounts",
+              note: "OAuth sign-in per server. Nothing here touches a terminal session.",
+              rows: accounts.map(accountRow),
+            },
+          ]
+        : []),
+      ...(servers.length ? [{ rows: servers.map(serverRow) }] : []),
+    ],
+  };
+}
+
+function accountRow(s: ServerStatusSnapshot): Row {
+  const signedOut = !s.signedIn && !s.disabled;
+  return {
+    id: `account:${s.name}`,
+    title: s.name,
+    subtitle: "OAuth",
+    badges: [
+      s.signedIn
+        ? { text: "Signed in", tone: "ok" as const }
+        : s.disabled
+          ? { text: "Off", tone: "muted" as const }
+          : { text: "Needs sign-in", tone: "warn" as const },
+    ],
+    ...(signedOut
+      ? { actions: [{ label: "Sign in", command: `/mcp auth ${s.name}`, tone: "warn" as const }] }
+      : {}),
+    ...(s.lastError ? { details: [{ label: "last error", value: s.lastError }] } : {}),
   };
 }
 

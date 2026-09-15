@@ -74,6 +74,15 @@ export class ServerManager {
     return this.runtimes.get(name)?.connection !== undefined;
   }
 
+  /**
+   * Credential state for the Accounts section. The OAuth store stays behind
+   * this method; snapshots carry the answer, never the store.
+   */
+  authState(name: string, entry: ServerEntry): { auth: "oauth" | "none"; signedIn: boolean } {
+    if (entry.auth !== "oauth" || !this.options.oauth) return { auth: "none", signedIn: false };
+    return { auth: "oauth", signedIn: this.options.oauth.hasTokens(name) };
+  }
+
   async connect(name: string, entry: ServerEntry): Promise<Connection> {
     const rt = this.runtime(name);
     if (rt.connection) {
