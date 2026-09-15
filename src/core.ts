@@ -340,6 +340,7 @@ export class PidMcp {
       const names = [...state.toolNames];
       const active = names.filter((n) => activeOwned.has(n));
       const pinned = names.filter((n) => this.activator.isPinned(n));
+      const authState = this.manager.authState(state.name, state.entry);
       totalTools += names.length;
       totalResources += state.resourceCount;
       servers.push({
@@ -358,6 +359,8 @@ export class PidMcp {
         runtimeRegistered: state.runtime,
         transport: transportOf(state.entry),
         ...(state.cachedAt !== undefined ? { cachedAt: state.cachedAt } : {}),
+        auth: authState.auth,
+        signedIn: authState.signedIn,
       });
     }
     return {
