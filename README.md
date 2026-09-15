@@ -18,12 +18,11 @@ No gateway tool, no `mcp({ tool, args })` indirection. Execution runs through th
 [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) inside the Pi
 process that owns the session.
 
-pid-mcp is the MCP extension bundled with [PID](../pid), Pi's desktop frontend, and it works on
-its own in the terminal.
+pid-mcp is a plain Pi extension. It runs in the terminal, and in [PID](../pid) — Pi's desktop
+frontend — because PID hosts Pi's own runtime and loads whatever Pi resolves. Nothing bundles it and
+no host installs it for you; one install serves both.
 
 ## Install
-
-Terminal Pi:
 
 ```bash
 pi install /path/to/pid-mcp        # or, once published: pi install npm:pid-mcp
@@ -35,10 +34,8 @@ or for one run:
 pi -e /path/to/pid-mcp/src/index.ts
 ```
 
-PID loads its bundled copy into every `pi --mode rpc` child automatically, unless your Pi
-already has an MCP extension installed (pid-mcp or pi-mcp-adapter). Do not run pid-mcp and
-pi-mcp-adapter in the same Pi: pid-mcp stands down with a warning when it sees the other one, so
-the servers are not started twice.
+Do not run pid-mcp and pi-mcp-adapter in the same Pi: pid-mcp stands down with a warning when it
+sees the other one, so the servers are not started twice.
 
 ## Configure
 
@@ -159,8 +156,10 @@ pnpm install
 pnpm typecheck
 pnpm test                       # unit + end-to-end against a stdio fixture server
 node test/smoke-rpc.mjs         # drives a real `pi --mode rpc` with slash commands
-node test/smoke-bridge.mjs ../pid   # same, with PID's bridge loaded, asserts the status widget
 ```
+
+A graphical host needs no separate smoke test here: it loads this extension the same way the
+terminal does, through Pi's own resolver.
 
 ## License
 

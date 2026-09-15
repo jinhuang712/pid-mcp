@@ -41,23 +41,24 @@ keeps the two separate.
 
 ## The frontend is optional
 
-pid-mcp is a Pi extension. It works in the terminal with `pi -e`, and it works
-when PID loads it into a `pi --mode rpc` child. PID adds a GUI on top by reading
-the same status events the terminal status bar reads. Closing PID changes
-nothing about what Pi can do.
+pid-mcp is a Pi extension and nothing else. It works in the terminal with `pi -e`,
+and it works unchanged in a graphical host, because such a host loads what Pi
+resolves rather than a copy of its own. The interface is the only difference: a
+status line there, a page here, both from one snapshot. Close the window and Pi
+can do exactly what it could before.
 
 ## Configuration belongs to the user
 
 pid-mcp reads the MCP config files Pi users already have. It does not create a
-parallel config, does not copy credentials, and does not edit Pi's settings. When
-PID wants to add a server, it writes to the same `mcp.json` a user would edit by
-hand.
+parallel config, does not copy credentials, and does not edit Pi's settings. A
+server is added by editing the same `mcp.json` a user would edit by hand — no
+host writes it on the user's behalf.
 
 ## Compatibility is a courtesy, not a constraint
 
 pid-mcp answers the runtime registration event other extensions already send to
 pi-mcp-adapter, publishes status on the same event name, and reads the same
-config layers. That keeps existing extensions and PID working on day one. It
+config layers. That keeps existing extensions working on day one. It
 does not mean pid-mcp mirrors every adapter feature. Batching scripts, a
 terminal setup panel, and MCP UI windows are out of scope.
 
