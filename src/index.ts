@@ -11,12 +11,7 @@ import type { AgentToolResult, ExtensionAPI, ExtensionCommandContext, ExtensionC
 import { Type } from "typebox";
 import { SEARCH_TOOL_NAME } from "./activation.ts";
 import { PidMcp, PID_MCP_VERSION } from "./core.ts";
-import {
-  OAUTH_WIDGET_KEY,
-  publishWidget,
-  STATUS_WIDGET_KEY,
-  withRuntimeDefinitions,
-} from "./host-widget.ts";
+import { buildPage, publishPage } from "./host-page.ts";
 import { OAuthStore } from "./oauth.ts";
 import { convertContent, guardOutput, stringifyStructured } from "./results.ts";
 import {
@@ -28,7 +23,7 @@ import {
   RUNTIME_SNAPSHOT_EVENT,
   publishStatus,
 } from "./status.ts";
-import type { CatalogTool, ServerEntry } from "./types.ts";
+import type { CatalogTool, ServerEntry, StatusSnapshot } from "./types.ts";
 import { isServerDisabled } from "./types.ts";
 import { writeDisabled } from "./write-config.ts";
 
@@ -82,15 +77,6 @@ export default function pidMcp(pi: ExtensionAPI): void {
     },
   });
 
-  /** Undefined for a server that came from an mcp.json, which is how a host tells the two apart. */
-  const runtimeDefinition = (name: string) => {
-    try {
-      return core.runtimeSnapshot(name).definition as { command?: string; args?: string[]; url?: string };
-    } catch {
-      return undefined;
-    }
-  };
-
   const core = new PidMcp({
     host: {
       registerTool: (tool) => registerCatalogTool(tool),
@@ -98,7 +84,8 @@ export default function pidMcp(pi: ExtensionAPI): void {
         publishStatus(pi.events, snapshot);
         if (ctx?.hasUI) ctx.ui.setStatus("mcp", core.statusLine() || undefined);
         // A terminal has one status line; a window can show the whole snapshot, so give it one.
-        publishWidget(ctx, STATUS_WIDGET_KEY, withRuntimeDefinitions(snapshot, runtimeDefinition));
+        // A window has room for the servers themselves, not just a count.
+        publishPage(ctx, buildPage(snapshot as StatusSnapshot));
       },
       log: (message) => console.error(`pid-mcp: ${message}`),
     },
@@ -455,7 +442,6 @@ export default function pidMcp(pi: ExtensionAPI): void {
       { triggerTurn: false },
     );
     pi.events.emit(OAUTH_STATUS_MESSAGE, { server, status, message });
-    publishWidget(ctx, OAUTH_WIDGET_KEY, { server, status, message });
   }
 
   function renderStatus(): string {
