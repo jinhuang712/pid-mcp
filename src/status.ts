@@ -2,8 +2,7 @@
  * Status events.
  *
  * Published on two channels with the same payload: `pid-mcp/status/v1` (canonical) and
- * `pi-mcp-adapter/status/v1` (so PID's bridge and any other listener written against the adapter
- * keep working). The first block of each server entry matches the adapter's snapshot field for
+ * `pi-mcp-adapter/status/v1` (so any listener written against the adapter keeps working). The first block of each server entry matches the adapter's snapshot field for
  * field; pid-mcp's own fields follow.
  */
 export const STATUS_EVENT = "pid-mcp/status/v1";

@@ -118,7 +118,7 @@ export type ServerRuntimeStatus =
   | "not-connected"
   | "disabled";
 
-/** Per-server status entry. The first block mirrors pi-mcp-adapter's snapshot so PID's existing parser works. */
+/** Per-server status entry. The first block mirrors pi-mcp-adapter's snapshot, field for field. */
 export interface ServerStatusSnapshot {
   name: string;
   status: ServerRuntimeStatus;
