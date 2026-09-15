@@ -12,13 +12,12 @@
 - Make registering a server easy: a config file entry, a package manifest, or a
   runtime event from another extension all work, and all can produce direct
   tools.
-- Publish machine-readable status so Pi's status bar and PID's MCP page show the
-  same thing.
-- Work in the Pi terminal and inside PID with identical behaviour.
-- Run without pi-mcp-adapter installed. PID bundles pid-mcp and needs nothing
-  else for MCP.
-- Stay wire-compatible with the runtime registration and status events that
-  existing extensions and PID's bridge already use.
+- Publish machine-readable status once, so every host shows the same thing: a
+  status line in the terminal, a page in a window.
+- Behave identically wherever Pi runs. The host differs, this extension does not.
+- Run without pi-mcp-adapter installed, and stand down cleanly when it is.
+- Stay wire-compatible with the runtime registration and status events existing
+  extensions already use.
 
 ## Non-goals
 
@@ -39,6 +38,7 @@
   package.
 - All MCP execution happens inside the Pi process that owns the session.
 - Config is read from the files Pi users already maintain. Nothing is written
-  unless the user asks through a command or PID's GUI.
+  unless the user asks for it, by command or by an affordance this extension
+  published.
 - Active tool changes inside a session are additive.
 - The extension must remain small enough to read in one sitting.

@@ -1,7 +1,7 @@
 # Features
 
 Tags say where a behaviour lives: `[SDK]` the MCP TypeScript SDK, `[Pi]` Pi's tool registry and
-extension API, `[pid-mcp]` this extension, `[PID]` the desktop frontend on top.
+extension API, `[pid-mcp]` this extension.
 
 ## Tool surface
 
@@ -57,11 +57,14 @@ extension API, `[pid-mcp]` this extension, `[PID]` the desktop frontend on top.
 - `/mcp`, `/mcp tools`, `/mcp search`, `/mcp connect`, `/mcp reconnect`, `/mcp refresh`, `/mcp auth`, `/mcp logout`, `/mcp reset-tools` `[pid-mcp]`
 - OAuth outcomes as a custom message and an event `[pid-mcp]`
 
-## PID
+## Graphical host
 
-- MCP page shows which tools the model can see, pinned vs search-activated vs waiting `[PID]`
-- last error and OAuth outcome per server `[PID]`
-- bundled and loaded per session with `-e`; stands down when the user has their own MCP extension `[PID]` `[pid-mcp]`
+- a page this extension publishes from the same snapshot: one row per server with status,
+  transport, runtime and active-tool badges `[pid-mcp]`
+- a switch per server and Reconnect / Sign-in / Sign-out buttons, each one a `/mcp …` command the
+  host hands back — the same command a terminal user types `[pid-mcp]`
+- active tools nested under their server, each with Deactivate `[pid-mcp]`
+- rendered by whatever host can draw the shape; nothing here assumes a particular one `[pid-mcp]`
 
 ## Not implemented
 

@@ -45,9 +45,8 @@ and `examples/extensions/kimi-deferred-tools.ts`.
 
 ## pi-mcp-adapter
 
-<https://github.com/nicobailon/pi-mcp-adapter>, 2.33.0. The MCP extension PID bundled before
-pid-mcp and the one many Pi users have installed. pid-mcp keeps three of its contracts so
-switching costs nothing:
+<https://github.com/nicobailon/pi-mcp-adapter>, 2.33.0. The MCP extension many Pi users already
+have installed. pid-mcp keeps three of its contracts so switching costs nothing:
 
 - config file layering and the `disabled` flag;
 - the metadata cache at `~/.pi/agent/mcp-cache.json`, version 1;
