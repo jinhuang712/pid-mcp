@@ -82,9 +82,10 @@ export default function pidMcp(pi: ExtensionAPI): void {
       registerTool: (tool) => registerCatalogTool(tool),
       publishStatus: (snapshot) => {
         publishStatus(pi.events, snapshot);
-        if (ctx?.hasUI) ctx.ui.setStatus("mcp", core.statusLine() || undefined);
-        // A terminal has one status line; a window has room for the servers themselves, so it gets
-        // the whole snapshot and its own half of this extension decides how to draw it.
+        // The terminal has no page for any of this, so it gets the one status line. A window gets
+        // the page instead: the strip above the composer would only repeat, in two words, what
+        // the page the extension draws already says in full.
+        if (ctx?.mode === "tui") ctx.ui.setStatus("mcp", core.statusLine() || undefined);
         publishSnapshot(ctx, snapshot as StatusSnapshot);
       },
       log: (message) => console.error(`pid-mcp: ${message}`),
