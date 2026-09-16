@@ -56,13 +56,32 @@ export function normalizeSearchText(value: string): string {
     .toLowerCase();
 }
 
-/** Tokens from the camelCase-split form plus the plain lowercased form, so `gRPC` yields both `rpc` and `grpc`. */
+/** CJK text into overlapping bigrams: 告警静默 → 告警 警静 静默. Single leftovers pass through. */
+function cjkBigrams(value: string): string[] {
+  const runs = value.match(/[\u3400-\u9fff\u3040-\u30ff]+/g) ?? [];
+  const out: string[] = [];
+  for (const run of runs) {
+    if (run.length <= 2) {
+      out.push(run);
+      continue;
+    }
+    for (let i = 0; i + 2 <= run.length; i++) out.push(run.slice(i, i + 2));
+  }
+  return out;
+}
+
+/**
+ * Tokens from the camelCase-split form plus the plain lowercased form, so `gRPC` yields both `rpc`
+ * and `grpc`. CJK text becomes bigrams — a CJK word matches CJK text by shared characters the
+ * way `grafana` matches `grafana_dashboard_read`, which the ASCII-only split used to throw away
+ * entirely (a query of 告警静默 against a description of 屏蔽告警 matched nothing).
+ */
 export function tokenize(value: string): string[] {
   const split = normalizeSearchText(value).split(/[^a-z0-9]+/).filter(Boolean);
   const plain = value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const t of [...split, ...plain]) {
+  for (const t of [...split, ...plain, ...cjkBigrams(value)]) {
     if (!seen.has(t)) {
       seen.add(t);
       out.push(t);
@@ -142,10 +161,13 @@ export function scoreTool(queryRaw: string, tool: CatalogTool): number | null {
     (qt) => allTokens.has(qt) || [...allTokens].some((t) => stemMatch(t, qt)) || (SYNONYMS[qt] ?? []).some((s) => allTokens.has(s)),
   ).length;
   const coverage = covered / queryTokens.length;
-  if (!phraseHit) {
-    if (queryTokens.length <= 2 && coverage < 1) return null;
-    if (queryTokens.length > 2 && coverage < 0.6) return null;
-  }
+  // A query that names the tool itself is a strong signal: it came from someone who knows the
+  // name but is stacking extra dimensions onto it (`monitor_k8s pod resources replicas utilization`).
+  // The gate for such a query halves, because the real 0-hit sessions showed the right tool at
+  // 38–50% coverage there, every time. A query with no name hit keeps the strict gate.
+  const nameHit = queryTokens.some((qt) => p.nameTokens.has(qt) || [...p.nameTokens].some((t) => stemMatch(t, qt)));
+  const gate = nameHit ? 0.3 : queryTokens.length <= 2 ? 1 : 0.6;
+  if (!phraseHit && coverage < gate) return null;
   score += coverage === 1 ? 25 : Math.round(coverage * 10);
   if (queryTokens[0] && p.nameTokens.has(queryTokens[0])) score += 8;
   if (exactField) score += 20;
