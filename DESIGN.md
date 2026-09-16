@@ -132,12 +132,17 @@ the page** — `src/ui.tsx`, declared as `"pid": { "ui": … }`, composing the h
 host reads none of the payload; it routes the lines back by name and mounts what comes out. So
 nothing here is capped by what a host author thought an MCP server looks like.
 
-Every affordance on the page is a `/mcp …` command handed straight back, the same command a terminal
-user would type, which is why the page needs no privileged channel of its own. Each one is built by
-a single `fires(command)` helper that spends the string twice — on the click and on the hover — so
-the button's tooltip is the command it runs. A reader about to change what the model can reach gets
-to see which command before clicking, not after. A host that never heard of `src/ui.tsx` loads the
-other half alone and shows no entry at all.
+The two halves sit in different processes, so a click in the window cannot call a function in the
+session. It sends the `/mcp …` command a terminal user would type — which is why the page needs no
+privileged channel of its own, and why every action it offers already exists in the terminal.
+
+That is transport, and it stays out of sight. A control says what it does to a server — "Turn serena
+off", "reconnect serena" — and never which command carries it; a failure reads `Could not reconnect
+serena — …`, not a quoted command line. The generic page this replaced did label its buttons with
+their commands, and had to: PID drew rows from a JSON description and could not know what any button
+meant, so the command was the only honest label it had. This page is written by the extension that
+owns the servers. It knows. A host that never heard of `src/ui.tsx` loads the other half alone and
+shows no entry at all.
 
 What the page is for decides its shape. Five servers and a hundred and fifty tools, and the reader
 wants one of three things: is anything broken, where is the tool I am looking for, and turn that off.

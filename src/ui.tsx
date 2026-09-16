@@ -2,8 +2,14 @@
  * The desktop half of this extension.
  *
  * The terminal half is `src/index.ts`; it does the work and publishes a snapshot. This runs in the
- * window, composes the host's own primitives, and turns each affordance into the same `/mcp …`
- * command a terminal user would type. Neither half knows how the other draws.
+ * window and composes the host's own primitives. Neither half knows how the other draws.
+ *
+ * The two halves sit in different processes, so a click here cannot call a function there. It sends
+ * the `/mcp …` command a terminal user would type, which means this page needs no privileged
+ * channel and every action it offers is one the terminal already has. That is transport. It stays
+ * out of sight: a control says what it does to a server, never which command carries it — a window
+ * that labels its buttons with command lines is showing the reader its own plumbing, and this page
+ * knows exactly what each of its controls means, so it has no excuse to.
  *
  * What the page is for: five servers and a hundred and fifty tools, and the reader wants one of
  * three things — is anything broken, where is the tool I am looking for, and turn that off. So the
@@ -58,9 +64,19 @@ const has = (text: string, q: string) => text.toLowerCase().includes(q);
 /** How many of a server's tools to list. Past this the row is a wall, and the search box is better. */
 const MAX_TOOLS = 60;
 
+/**
+ * The one thing the page is doing, if it is doing anything.
+ *
+ * `/mcp …` is how this half reaches the other one across a process boundary, and that is transport,
+ * not interface. So nothing here keeps the command: `doing` is a phrase a reader recognises, and it
+ * is what a failure is reported as. A window that answers "`/mcp deactivate serena x` failed" is
+ * telling the reader about its own plumbing.
+ */
 interface Busy {
-  /** The command in flight, so every affordance can be disabled while one runs. */
-  command?: string;
+  /** Which server is mid-change, so its row alone says so. */
+  server?: string;
+  /** What is being done to it, in words. */
+  doing?: string;
   error?: string;
 }
 
@@ -85,22 +101,16 @@ function Server({
   const open = manual ?? (query.length > 0 && hits.length > 0);
   const shown = hits.slice(0, MAX_TOOLS);
   const needsAuth = s.status === "needs-auth" || (s.auth === "oauth" && !s.signedIn && !s.disabled);
-  const working = busy.command !== undefined;
-  const send = (command: string) => {
-    setBusy({ command });
+  const working = busy.doing !== undefined;
+  /** `doing` is what the reader sees; `command` is how it gets there, and never reaches the page. */
+  const send = (doing: string, command: string) => {
+    setBusy({ server: s.name, doing });
     void run(command)
       .then(() => setBusy({}))
-      .catch((e: unknown) => setBusy({ error: `${command}: ${e instanceof Error ? e.message : String(e)}` }));
+      .catch((e: unknown) =>
+        setBusy({ error: `Could not ${doing} — ${e instanceof Error ? e.message : String(e)}` }),
+      );
   };
-
-  /**
-   * One command, spent twice: what the affordance runs, and what it says on hover.
-   *
-   * Nothing on this page does anything a terminal user could not type, so the honest label for a
-   * button is the command itself — and a reader who is about to change what the model can reach
-   * deserves to see which one before clicking rather than after.
-   */
-  const fires = (command: string) => ({ title: command, onClick: () => send(command) });
 
   return (
     <Panel>
@@ -111,8 +121,8 @@ function Server({
           <Toggle
             value={!s.disabled}
             disabled={working}
-            title={`/mcp ${s.disabled ? "enable" : "disable"} ${s.name}`}
-            onChange={(on) => send(`/mcp ${on ? "enable" : "disable"} ${s.name}`)}
+            title={s.disabled ? `Turn ${s.name} on` : `Turn ${s.name} off`}
+            onChange={(on) => send(`turn ${s.name} ${on ? "on" : "off"}`, `/mcp ${on ? "enable" : "disable"} ${s.name}`)}
           />
         }
         summary={
@@ -132,13 +142,13 @@ function Server({
           </>
         }
         trail={
-          busy.command?.endsWith(s.name) ? (
-            <Say tone="faint">working…</Say>
+          busy.server === s.name && busy.doing ? (
+            <Say tone="faint">{busy.doing}…</Say>
           ) : needsAuth ? (
             // The one action that goes on a collapsed row: a server nobody signed into does nothing
             // at all, and burying the fix one click deep means the row states a problem and hides
             // its answer.
-            <Action disabled={working} tone="accent" {...fires(`/mcp auth ${s.name}`)}>
+            <Action disabled={working} tone="accent" onClick={() => send(`sign in to ${s.name}`, `/mcp auth ${s.name}`)}>
               Sign in
             </Action>
           ) : undefined
@@ -156,14 +166,19 @@ function Server({
             <Spread />
             {!s.disabled && (
               <Inline>
-                <Action disabled={working} {...fires(`/mcp reconnect ${s.name}`)}>
+                <Action disabled={working} onClick={() => send(`reconnect ${s.name}`, `/mcp reconnect ${s.name}`)}>
                   Reconnect
                 </Action>
                 {s.auth === "oauth" && (
                   <Action
                     disabled={working}
                     tone={s.signedIn ? "soft" : "accent"}
-                    {...fires(`/mcp ${s.signedIn ? "logout" : "auth"} ${s.name}`)}
+                    onClick={() =>
+                      send(
+                        `sign ${s.signedIn ? "out of" : "in to"} ${s.name}`,
+                        `/mcp ${s.signedIn ? "logout" : "auth"} ${s.name}`,
+                      )
+                    }
                   >
                     {s.signedIn ? "Sign out" : "Sign in"}
                   </Action>
@@ -182,7 +197,7 @@ function Server({
             <>
               <Divider />
               {shown.map((name) => (
-                <Row key={name} disabled={working} {...fires(`/mcp deactivate ${s.name} ${name}`)}>
+                <Row key={name} disabled={working} onClick={() => send(`deactivate ${name}`, `/mcp deactivate ${s.name} ${name}`)}>
                   <Say truncate mono>
                     {name}
                   </Say>
