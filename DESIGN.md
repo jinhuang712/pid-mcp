@@ -133,8 +133,11 @@ host reads none of the payload; it routes the lines back by name and mounts what
 nothing here is capped by what a host author thought an MCP server looks like.
 
 Every affordance on the page is a `/mcp …` command handed straight back, the same command a terminal
-user would type, which is why the page needs no privileged channel of its own. A host that never
-heard of `src/ui.tsx` loads the other half alone and shows no entry at all.
+user would type, which is why the page needs no privileged channel of its own. Each one is built by
+a single `fires(command)` helper that spends the string twice — on the click and on the hover — so
+the button's tooltip is the command it runs. A reader about to change what the model can reach gets
+to see which command before clicking, not after. A host that never heard of `src/ui.tsx` loads the
+other half alone and shows no entry at all.
 
 What the page is for decides its shape. Five servers and a hundred and fifty tools, and the reader
 wants one of three things: is anything broken, where is the tool I am looking for, and turn that off.
