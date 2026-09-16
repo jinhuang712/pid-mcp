@@ -5,6 +5,7 @@
  * for a catalog entry, and one to publish a status snapshot. index.ts supplies both. Keeping Pi out
  * of this file is what makes the behaviour testable with a fake registry.
  */
+import { homedir } from "node:os";
 import { buildServerCatalog } from "./catalog.ts";
 import { computeConfigHash, isCacheEntryValid, readCache, cachePath as defaultCachePath, writeCacheEntry } from "./cache.ts";
 import { agentDir, loadConfig, transportOf, type ConfigSource } from "./config.ts";
@@ -20,6 +21,7 @@ import type {
   ServerRuntimeStatus,
   ServerStatusSnapshot,
   StatusSnapshot,
+  ToolStatusEntry,
 } from "./types.ts";
 import { isServerDisabled } from "./types.ts";
 
@@ -343,6 +345,23 @@ export class PidMcp {
       const authState = this.manager.authState(state.name, state.entry);
       totalTools += names.length;
       totalResources += state.resourceCount;
+      // The tool list itself, with descriptions and activation state, for a host that has room
+      // for it. Names alone were not enough: a page that cannot say what a tool does forces its
+      // reader to the terminal to find out.
+      const tools: ToolStatusEntry[] = names.map((piName) => {
+        const c = this.catalog.get(piName);
+        return {
+          name: c?.originalName ?? piName,
+          piName,
+          ...(c?.description ? { description: c.description } : {}),
+          active: activeOwned.has(piName),
+          pinned: this.activator.isPinned(piName),
+        };
+      });
+      const startedFrom =
+        typeof state.entry.url === "string"
+          ? state.entry.url
+          : [state.entry.command, ...(state.entry.args ?? [])].filter(Boolean).join(" ");
       servers.push({
         name: state.name,
         status,
@@ -361,6 +380,9 @@ export class PidMcp {
         ...(state.cachedAt !== undefined ? { cachedAt: state.cachedAt } : {}),
         auth: authState.auth,
         signedIn: authState.signedIn,
+        ...(tools.length > 0 ? { tools } : {}),
+        ...(startedFrom ? { startedFrom } : {}),
+        ...(!state.runtime && this.definedIn[state.name]?.length ? { definedIn: this.definedIn[state.name] } : {}),
       });
     }
     return {
@@ -373,6 +395,8 @@ export class PidMcp {
       source: "pid-mcp",
       pidMcpVersion: PID_MCP_VERSION,
       activeToolCount: activeOwned.size,
+      ...(this.cachePath ? { cachePath: this.cachePath } : {}),
+      home: homedir(),
     };
   }
 
