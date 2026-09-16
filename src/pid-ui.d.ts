@@ -88,4 +88,28 @@ declare module "@pid/ui" {
     p: Base & { placement?: "up" | "down"; onClick: () => void },
   ): Node;
   export function Keys(p: { keys: string[]; label?: string }): Node;
+  export function Chevron(p: { open: boolean; turn?: "right" | "down" }): Node;
+  export function Disclosure(
+    p: Base & {
+      open: boolean;
+      onToggle?: () => void;
+      lead?: Node;
+      summary: Node;
+      trail?: Node;
+      turn?: "right" | "down";
+    },
+  ): Node;
+}
+
+/**
+ * The React the host installs, reached through the same shim as the primitives.
+ *
+ * A page that remembers which rows are open, or that a command is still running, needs state, and
+ * state means the host's own React — a second copy would render into a second reconciler and see
+ * none of the host's context.
+ */
+declare module "react" {
+  export function useState<S>(initial: S | (() => S)): [S, (next: S | ((prev: S) => S)) => void];
+  export function useMemo<T>(factory: () => T, deps: unknown[]): T;
+  export function useCallback<T>(fn: T, deps: unknown[]): T;
 }
