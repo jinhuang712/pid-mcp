@@ -127,10 +127,25 @@ Publishing is debounced by 20 ms and goes to both `pid-mcp/status/v1` and
 `pi-mcp-adapter/status/v1`, so anything already listening for the adapter keeps working.
 
 The same choke point draws the interface. A terminal gets one status line and `/mcp`. A graphical
-host cannot be expected to know what an MCP server is, so it gets the page as data — rows, badges, a
-switch, buttons — built from the identical snapshot in `host-page.ts`. Every affordance on it is a
-`/mcp …` command handed straight back, the same command a terminal user would type. A host with no
-renderer for it shows nothing, and a host that never heard of this extension shows no entry at all.
+host gets the snapshot itself, published under this extension's own name, and **this extension draws
+the page** — `src/ui.tsx`, declared as `"pid": { "ui": … }`, composing the host's primitives. The
+host reads none of the payload; it routes the lines back by name and mounts what comes out. So
+nothing here is capped by what a host author thought an MCP server looks like.
+
+Every affordance on the page is a `/mcp …` command handed straight back, the same command a terminal
+user would type, which is why the page needs no privileged channel of its own. A host that never
+heard of `src/ui.tsx` loads the other half alone and shows no entry at all.
+
+What the page is for decides its shape. Five servers and a hundred and fifty tools, and the reader
+wants one of three things: is anything broken, where is the tool I am looking for, and turn that off.
+So the collapsed row carries a status dot, the name, and one count — and nothing else. The transport,
+the cache age, reconnecting, signing out, and the active tool names all live inside the row, because
+a detail repeated on every row is not a detail, it is wallpaper. Two exceptions earn a place on the
+collapsed line: a status that is not `connected` or `cached` says itself, and a server nobody signed
+into shows its Sign in, because a row that states a problem and hides its answer is worse than one
+that says nothing. The search box is the host's, at the top of the page; a query that matches inside
+a server opens that server, since a row answering "3 match" and staying shut makes the reader click
+to find what they already asked for.
 
 ## Compatibility with pi-mcp-adapter
 

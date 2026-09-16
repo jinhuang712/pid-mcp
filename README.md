@@ -22,6 +22,22 @@ pid-mcp is a plain Pi extension. It runs in the terminal, and in [PID](../pid) �
 frontend — because PID hosts Pi's own runtime and loads whatever Pi resolves. Nothing bundles it and
 no host installs it for you; one install serves both.
 
+In a window it also draws its own page, from `src/ui.tsx`:
+
+```text
+MCP
+1/5 connected · 17 of 156 tools active · 1 off      [ Meegle, klook-grafana ]
+┌ Search servers and active tools…                                          ┐
+  ( ● ) › ● klook-grafana   failed                                   5 tools
+  ( ● ) › ● Meegle          needs-auth                47 tools     [Sign in]
+  ( ● ) › ● serena                                             17/17 active
+```
+
+One line per server: the switch, a status dot, the name, and how much of it the model can reach.
+Open a row for the transport, the cache age, Reconnect, sign-in, and the active tool names — each of
+which can be deactivated from there. Type in the box and a server whose name or tools match opens
+itself with only the matches showing.
+
 ## Install
 
 ```bash
@@ -158,8 +174,10 @@ pnpm test                       # unit + end-to-end against a stdio fixture serv
 node test/smoke-rpc.mjs         # drives a real `pi --mode rpc` with slash commands
 ```
 
-A graphical host needs no separate smoke test here: it loads this extension the same way the
-terminal does, through Pi's own resolver.
+A graphical host needs no separate install here: it loads this extension the same way the terminal
+does, through Pi's own resolver. `pnpm typecheck` covers `src/ui.tsx` against `src/pid-ui.d.ts`, a
+local mirror of the host's primitives — the host stays the source of truth, and the mirror only
+catches a typo in a name or a prop.
 
 ## License
 
