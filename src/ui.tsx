@@ -93,6 +93,15 @@ function Server({
       .catch((e: unknown) => setBusy({ error: `${command}: ${e instanceof Error ? e.message : String(e)}` }));
   };
 
+  /**
+   * One command, spent twice: what the affordance runs, and what it says on hover.
+   *
+   * Nothing on this page does anything a terminal user could not type, so the honest label for a
+   * button is the command itself — and a reader who is about to change what the model can reach
+   * deserves to see which one before clicking rather than after.
+   */
+  const fires = (command: string) => ({ title: command, onClick: () => send(command) });
+
   return (
     <Panel>
       <Disclosure
@@ -102,7 +111,7 @@ function Server({
           <Toggle
             value={!s.disabled}
             disabled={working}
-            title={s.disabled ? `Turn ${s.name} on` : `Turn ${s.name} off`}
+            title={`/mcp ${s.disabled ? "enable" : "disable"} ${s.name}`}
             onChange={(on) => send(`/mcp ${on ? "enable" : "disable"} ${s.name}`)}
           />
         }
@@ -129,7 +138,7 @@ function Server({
             // The one action that goes on a collapsed row: a server nobody signed into does nothing
             // at all, and burying the fix one click deep means the row states a problem and hides
             // its answer.
-            <Action disabled={working} tone="accent" onClick={() => send(`/mcp auth ${s.name}`)}>
+            <Action disabled={working} tone="accent" {...fires(`/mcp auth ${s.name}`)}>
               Sign in
             </Action>
           ) : undefined
@@ -147,14 +156,14 @@ function Server({
             <Spread />
             {!s.disabled && (
               <Inline>
-                <Action disabled={working} onClick={() => send(`/mcp reconnect ${s.name}`)}>
+                <Action disabled={working} {...fires(`/mcp reconnect ${s.name}`)}>
                   Reconnect
                 </Action>
                 {s.auth === "oauth" && (
                   <Action
                     disabled={working}
                     tone={s.signedIn ? "soft" : "accent"}
-                    onClick={() => send(`/mcp ${s.signedIn ? "logout" : "auth"} ${s.name}`)}
+                    {...fires(`/mcp ${s.signedIn ? "logout" : "auth"} ${s.name}`)}
                   >
                     {s.signedIn ? "Sign out" : "Sign in"}
                   </Action>
@@ -173,7 +182,7 @@ function Server({
             <>
               <Divider />
               {shown.map((name) => (
-                <Row key={name} disabled={working} onClick={() => send(`/mcp deactivate ${s.name} ${name}`)}>
+                <Row key={name} disabled={working} {...fires(`/mcp deactivate ${s.name} ${name}`)}>
                   <Say truncate mono>
                     {name}
                   </Say>
