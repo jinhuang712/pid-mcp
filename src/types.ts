@@ -143,6 +143,24 @@ export interface ServerStatusSnapshot {
   auth: "oauth" | "none";
   /** Whether the OAuth store holds tokens. Always false when auth is "none". */
   signedIn: boolean;
+  // pid-mcp additions: the tool list itself, for a page that shows more than counts.
+  /** Every tool the catalog holds for this server, with its activation state and description. */
+  tools?: ToolStatusEntry[];
+  /** The command line or URL the server starts from, as configured. */
+  startedFrom?: string;
+  /** Config files that define this server, lowest precedence first. Absent for runtime servers. */
+  definedIn?: string[];
+}
+
+/** One tool of a server, as the desktop half lists it. */
+export interface ToolStatusEntry {
+  /** The server's own name for the tool. */
+  name: string;
+  /** The Pi tool name it is registered under. */
+  piName: string;
+  description?: string;
+  active: boolean;
+  pinned: boolean;
 }
 
 export interface StatusSnapshot {
@@ -156,4 +174,8 @@ export interface StatusSnapshot {
   source: "pid-mcp";
   pidMcpVersion: string;
   activeToolCount: number;
+  /** Where the tool cache lives, for a page that says where its descriptions come from. */
+  cachePath?: string;
+  /** The user's home, so a page can shorten absolute paths to `~`. */
+  home?: string;
 }
