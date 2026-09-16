@@ -4,14 +4,25 @@
   "description": "MCP capability loader for Pi: every MCP tool is a native Pi tool, held inactive until mcp_search activates it.",
   "type": "module",
   "license": "MIT",
-  "keywords": ["pi-package", "pi-extension", "pi", "mcp"],
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi",
+    "mcp"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jinhuang712/pid-mcp.git"
   },
-  "files": ["src", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": [
+      "./src/index.ts"
+    ]
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -31,5 +42,8 @@
     "@types/node": "^24.0.0",
     "typebox": "1.3.7",
     "typescript": "^5.9.0"
+  },
+  "pid": {
+    "ui": "./src/ui.tsx"
   }
 }

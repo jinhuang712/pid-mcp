@@ -11,7 +11,7 @@ import type { AgentToolResult, ExtensionAPI, ExtensionCommandContext, ExtensionC
 import { Type } from "typebox";
 import { SEARCH_TOOL_NAME } from "./activation.ts";
 import { PidMcp, PID_MCP_VERSION } from "./core.ts";
-import { buildPage, publishPage } from "./host-page.ts";
+import { publishSnapshot } from "./host.ts";
 import { OAuthStore } from "./oauth.ts";
 import { convertContent, guardOutput, stringifyStructured } from "./results.ts";
 import {
@@ -83,9 +83,9 @@ export default function pidMcp(pi: ExtensionAPI): void {
       publishStatus: (snapshot) => {
         publishStatus(pi.events, snapshot);
         if (ctx?.hasUI) ctx.ui.setStatus("mcp", core.statusLine() || undefined);
-        // A terminal has one status line; a window can show the whole snapshot, so give it one.
-        // A window has room for the servers themselves, not just a count.
-        publishPage(ctx, buildPage(snapshot as StatusSnapshot));
+        // A terminal has one status line; a window has room for the servers themselves, so it gets
+        // the whole snapshot and its own half of this extension decides how to draw it.
+        publishSnapshot(ctx, snapshot as StatusSnapshot);
       },
       log: (message) => console.error(`pid-mcp: ${message}`),
     },
