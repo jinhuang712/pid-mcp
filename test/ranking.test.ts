@@ -15,6 +15,7 @@ const tool = (serverName: string, originalName: string, description: string): Ca
 const catalog: CatalogTool[] = [
   tool("klook-engine", "query_log", "Query service logs from LogQuery for prod, stage or fat"),
   tool("klook-engine", "monitor_rpc", "gRPC latency and error-rate panels for a service"),
+  tool("klook-engine", "monitor_k8s", "Kubernetes pod replicas, CPU and memory usage, restarts"),
   tool("klook-engine", "lookup_db_account", "Find MySQL accounts and permissions for a database"),
   tool("github", "search_issues", "Search GitHub issues across repositories"),
   tool("github", "get_issue", "Get one GitHub issue by number"),
@@ -55,4 +56,26 @@ test("unrelated queries return nothing rather than noise", () => {
 
 test("limit is respected", () => {
   assert.equal(ranker.rank("github", catalog, 2).length, 2);
+});
+
+test("CJK text tokenizes into bigrams on both sides of the match", () => {
+  // A Chinese query against a Chinese description used to produce zero tokens — the ASCII-only
+  // split dropped every character, so 屏蔽告警 could not find 屏蔽告警 even verbatim.
+  assert.deepEqual(tokenize("告警"), ["告警"]);
+  assert.deepEqual(tokenize("告警静默"), ["告警", "警静", "静默"]);
+  const cn = tool("klook-flashcat", "flashcat_mute", "屏蔽告警，支持阈值与 SLO");
+  const top = ranker.rank("屏蔽告警", [cn, ...catalog], 3);
+  assert.equal(top[0]?.tool.piToolName, "klook-flashcat_flashcat_mute");
+  // Verbatim CJK never relies on luck: the words land in the same token space as the field text.
+  const mixed = ranker.rank("mute 屏蔽告警", [cn, ...catalog], 1);
+  assert.equal(mixed[0]?.tool.piToolName, "klook-flashcat_flashcat_mute");
+});
+
+test("a query that names the tool still ranks with extra dimensions stacked on", () => {
+  // From the real 0-hit sessions: the tool is named, then probe words are stacked after it.
+  // The strict 0.6 gate used to reject exactly these.
+  const top = ranker.rank("monitor_k8s pod resources replicas utilization restarts", catalog, 1);
+  assert.equal(top[0]?.tool.piToolName, "klook-engine_monitor_k8s");
+  const none = ranker.rank("bake sourdough loaves", catalog, 1);
+  assert.equal(none.length, 0); // no name hit, no coverage: still nothing
 });
